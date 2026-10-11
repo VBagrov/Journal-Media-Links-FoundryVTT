@@ -4,6 +4,7 @@
   "description": "Launches various types of content using pre-prepared links and a user-friendly editor.",
   "version": "1.0.1",
   "socket": true,
+  "download": "https://github.com/VBagrov/Journal-Media-Links-FoundryVTT/archive/refs/tags/v1.0.1.zip",
   "compatibility": {
     "minimum": "13",
     "verified": "13"
