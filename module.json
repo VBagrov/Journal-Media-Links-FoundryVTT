@@ -1,0 +1,14 @@
+{
+  "id": "journal-media-links",
+  "title": "Journal Media Links",
+  "description": "Launches various types of content using pre-prepared links and a user-friendly editor.",
+  "version": "1.0.1",
+  "socket": true,
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "esmodules": [
+    "scripts/main.js"
+  ]
+}
