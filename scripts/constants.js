@@ -1,6 +1,6 @@
-export const MODULE_ID = "journal-track-links";
+export const MODULE_ID = "journal-media-links";
 export const SOCKET_NAME = `module.${MODULE_ID}`;
-export const IMAGE_OVERLAY_ID = "jtl-image-overlay";
+export const IMAGE_OVERLAY_ID = "jml-image-overlay";
 
 export const LINK_TYPES = Object.freeze({
   SCENE: "scene",

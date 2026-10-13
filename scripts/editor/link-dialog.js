@@ -24,16 +24,19 @@ export function openLinkDialog(editor) {
       <div class="form-group track-field" style="display:none"><label>Трек</label><select name="sound"></select></div>
       <div class="form-group images-field" style="display:none">
         <label>Изображения (можно выбрать несколько)</label>
-        <select name="images" multiple size="8" style="width:100%;min-height:150px"></select>
+        <select name="images" multiple size="5" class="jml-image-select"></select>
+        <div class="jml-image-preview" aria-live="polite"><p class="notes">Выбери изображение для предпросмотра.</p></div>
         <p class="notes">Папка: ${escapeHtml(imageFolder)}</p>
         <label>Загрузить новые изображения</label><input name="uploadFiles" type="file" accept="image/*" multiple />
+        <div class="jml-upload-preview"><p class="notes">Выбранные для загрузки изображения и их имена появятся здесь.</p></div>
         <button type="button" name="uploadButton" style="margin-top:6px">Загрузить выбранные файлы</button>
-        <p class="notes">После загрузки выбери файлы в списке выше.</p>
+        <p class="notes">Перед загрузкой можно изменить имя каждого файла.</p>
       </div>
       <div class="form-group"><label>Текст ссылки</label><input name="label" type="text" value="${DEFAULT_LABELS[LINK_TYPES.SCENE]}" /></div>
     </form>`;
 
-  new Dialog({
+  let dialog;
+  dialog = new Dialog({
     title: "Создать ссылку",
     content,
     buttons: {
@@ -79,6 +82,69 @@ export function openLinkDialog(editor) {
       const images = form.elements.images;
       const uploadFiles = form.elements.uploadFiles;
       const uploadButton = form.elements.uploadButton;
+      const imagePreview = form.querySelector(".jml-image-preview");
+      const uploadPreview = form.querySelector(".jml-upload-preview");
+
+      const resizeDialog = () => {
+        requestAnimationFrame(() => {
+          const app = form.closest(".window-app, .app");
+          if (app) {
+            app.style.height = "auto";
+            app.style.maxHeight = `${Math.max(240, window.innerHeight - 32)}px`;
+          }
+          dialog?.setPosition?.({
+            width: Math.min(680, Math.max(320, window.innerWidth - 32)),
+            height: "auto"
+          });
+        });
+      };
+
+      const updateImagePreview = () => {
+        const selected = Array.from(images.selectedOptions).map(option => option.value).filter(Boolean);
+        if (!selected.length) {
+          imagePreview.innerHTML = '<p class="notes">Выбери изображение для предпросмотра.</p>';
+        } else {
+          imagePreview.innerHTML = selected.map(path => `
+            <figure class="jml-preview-item">
+              <img src="${escapeHtml(path)}" alt="${escapeHtml(path.split("/").pop())}">
+              <figcaption>${escapeHtml(path.split("/").pop())}</figcaption>
+            </figure>`).join("");
+        }
+        resizeDialog();
+      };
+
+      const renderUploadPreview = () => {
+        const files = Array.from(uploadFiles.files ?? []);
+        uploadPreview.innerHTML = "";
+        if (!files.length) {
+          uploadPreview.innerHTML = '<p class="notes">Выбранные для загрузки изображения и их имена появятся здесь.</p>';
+          resizeDialog();
+          return;
+        }
+        files.forEach((file, index) => {
+          const row = document.createElement("div");
+          row.className = "jml-upload-item";
+          const img = document.createElement("img");
+          img.alt = file.name;
+          img.src = URL.createObjectURL(file);
+          img.addEventListener("load", () => URL.revokeObjectURL(img.src), { once: true });
+          const fields = document.createElement("div");
+          fields.className = "jml-upload-fields";
+          const caption = document.createElement("span");
+          caption.textContent = file.name;
+          caption.className = "jml-upload-original-name";
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "jml-upload-name";
+          input.dataset.fileIndex = String(index);
+          input.value = file.name.replace(/\\.[^.]+$/, "");
+          input.setAttribute("aria-label", `Новое имя файла ${file.name}`);
+          fields.append(caption, input);
+          row.append(img, fields);
+          uploadPreview.append(row);
+        });
+        resizeDialog();
+      };
 
       const updateSounds = () => {
         const sounds = game.playlists.get(playlist.value)?.sounds.contents ?? [];
@@ -90,6 +156,7 @@ export function openLinkDialog(editor) {
         form.querySelectorAll(".track-field").forEach(el => el.style.display = selectedType === LINK_TYPES.TRACK ? "" : "none");
         form.querySelectorAll(".images-field").forEach(el => el.style.display = selectedType === LINK_TYPES.IMAGES ? "" : "none");
         label.value = DEFAULT_LABELS[selectedType];
+        resizeDialog();
       };
 
       async function ensureImageFolder() {
@@ -97,7 +164,7 @@ export function openLinkDialog(editor) {
         for (const part of imageFolder.split("/")) {
           current = current ? `${current}/${part}` : part;
           try { await FilePicker.createDirectory("data", current); }
-          catch (error) { console.debug("Journal Track Links | Каталог уже существует или не создан:", current, error); }
+          catch (error) { console.debug("Journal Media Links | Каталог уже существует или не создан:", current, error); }
         }
       }
 
@@ -110,9 +177,10 @@ export function openLinkDialog(editor) {
             `<option value="${escapeHtml(path)}">${escapeHtml(path.split("/").pop())}</option>`
           ).join("");
           for (const option of images.options) option.selected = previous.has(option.value);
+          updateImagePreview();
           if (!files.length) ui.notifications.info("В папке пока нет изображений. Можно загрузить их здесь.");
         } catch (error) {
-          console.error("Journal Track Links | Не удалось прочитать папку изображений:", error);
+          console.error("Journal Media Links | Не удалось прочитать папку изображений:", error);
           ui.notifications.warn("Не удалось прочитать папку изображений. Проверь доступ к каталогу assets.");
         }
       }
@@ -124,18 +192,25 @@ export function openLinkDialog(editor) {
         uploadButton.textContent = "Загрузка…";
         try {
           await ensureImageFolder();
-          for (const file of files) {
+          const nameInputs = Array.from(uploadPreview.querySelectorAll(".jml-upload-name"));
+          for (const [index, file] of files.entries()) {
             if (!file.type.startsWith("image/")) {
               ui.notifications.warn(`Пропущен не графический файл: ${file.name}`);
               continue;
             }
-            await FilePicker.upload("data", imageFolder, file, {}, { notify: false });
+            const editedBase = (nameInputs[index]?.value ?? file.name.replace(/\\.[^.]+$/, ""))
+              .trim().replace(/[<>:"/\\\\|?*\\x00-\\x1F]/g, "_");
+            const extension = file.name.match(/\\.[^.]+$/)?.[0] ?? "";
+            const safeName = `${editedBase || file.name.replace(/\\.[^.]+$/, "")}${extension}`;
+            const renamedFile = new File([file], safeName, { type: file.type, lastModified: file.lastModified });
+            await FilePicker.upload("data", imageFolder, renamedFile, {}, { notify: false });
           }
           uploadFiles.value = "";
+          renderUploadPreview();
           await refreshImages();
           ui.notifications.info("Загрузка изображений завершена.");
         } catch (error) {
-          console.error("Journal Track Links | Ошибка загрузки изображений:", error);
+          console.error("Journal Media Links | Ошибка загрузки изображений:", error);
           ui.notifications.error("Не удалось загрузить изображения. Проверь права доступа к папке данных Foundry.");
         } finally {
           uploadButton.disabled = false;
@@ -145,9 +220,15 @@ export function openLinkDialog(editor) {
 
       type.addEventListener("change", updateType);
       playlist.addEventListener("change", updateSounds);
+      images.addEventListener("change", updateImagePreview);
+      uploadFiles.addEventListener("change", renderUploadPreview);
+      window.addEventListener("resize", resizeDialog);
       updateSounds();
       updateType();
       refreshImages();
+      renderUploadPreview();
+      resizeDialog();
     }
-  }, { width: 600 }).render(true);
+  }, { width: Math.min(680, Math.max(320, window.innerWidth - 32)), height: "auto" });
+  dialog.render(true);
 }

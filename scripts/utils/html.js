@@ -9,6 +9,6 @@ export function escapeHtml(value) {
 }
 
 export function notifyError(message, error, context) {
-  console.error(`Journal Track Links | ${context}`, error);
+  console.error(`Journal Media Links | ${context}`, error);
   ui.notifications.error(message);
 }

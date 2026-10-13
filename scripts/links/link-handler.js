@@ -1,4 +1,25 @@
 import { showImagesForEveryone } from "../images/image-overlay.js";
+import { escapeHtml } from "../utils/html.js";
+
+function askChoice({ title, content, choices, width = 420 }) {
+  return new Promise((resolve) => {
+    const buttons = {};
+    for (const choice of choices) {
+      buttons[choice.id] = {
+        label: choice.label,
+        ...(choice.cssClass ? { class: choice.cssClass } : {}),
+        callback: () => resolve(choice.id)
+      };
+    }
+    new Dialog({
+      title,
+      content: `<div class="jml-choice-dialog">${content}</div>`,
+      buttons,
+      default: choices[0]?.id,
+      close: () => resolve(null)
+    }, { width: Math.min(width, Math.max(300, window.innerWidth - 24)), height: "auto" }).render(true);
+  });
+}
 
 async function handleTrackLink(link) {
   const parts = link.dataset.trackUuid.split(".");
@@ -6,15 +27,38 @@ async function handleTrackLink(link) {
   const sound = parts[2] === "PlaylistSound" ? playlist?.sounds.get(parts[3]) : null;
 
   if (!playlist || !sound) {
-    console.error("Journal Track Links | Плейлист или трек не найден", link.dataset.trackUuid);
+    console.error("Journal Media Links | Плейлист или трек не найден", link.dataset.trackUuid);
     ui.notifications.error("Плейлист или трек не найден.");
     return;
   }
+
+  const choice = await askChoice({
+    title: "Запуск музыкального трека",
+    content: `<p>Как запустить <strong>${escapeHtml(sound.name)}</strong>?</p><p class="notes">Можно оставить текущую музыку или заменить её новым треком. Для микса нескольких треков из одного плейлиста нужен режим одновременного воспроизведения в настройках этого плейлиста.</p>`,
+    choices: [
+      { id: "mix", label: "Добавить к текущей музыке" },
+      { id: "replace", label: "Заменить текущую музыку", cssClass: "jml-primary" }
+    ]
+  });
+  if (!choice) return;
+
   try {
+    if (choice === "replace") {
+      for (const currentPlaylist of game.playlists.contents) {
+        for (const currentSound of currentPlaylist.sounds.contents) {
+          if (!currentSound.playing) continue;
+          if (typeof currentPlaylist.stopSound === "function") {
+            await currentPlaylist.stopSound(currentSound);
+          } else if (typeof currentSound.update === "function") {
+            await currentSound.update({ playing: false });
+          }
+        }
+      }
+    }
     await playlist.playSound(sound);
-    console.log("Journal Track Links | Playing:", sound.name);
+    console.log("Journal Media Links | Playing:", sound.name, `(${choice})`);
   } catch (error) {
-    console.error("Journal Track Links | Ошибка запуска трека:", error);
+    console.error("Journal Media Links | Ошибка запуска трека:", error);
     ui.notifications.error("Не удалось запустить трек.");
   }
 }
@@ -24,16 +68,32 @@ async function handleSceneLink(link) {
   const sceneId = uuid.startsWith("Scene.") ? uuid.slice("Scene.".length) : uuid;
   const scene = game.scenes.get(sceneId);
   if (!scene) {
-    console.error("Journal Track Links | Сцена не найдена:", uuid);
+    console.error("Journal Media Links | Сцена не найдена:", uuid);
     ui.notifications.error(`Сцена не найдена: ${uuid}`);
     return;
   }
+
+  const choice = await askChoice({
+    title: "Переход к сцене",
+    content: `<p>Что сделать со сценой <strong>${escapeHtml(scene.name)}</strong>?</p><p class="notes">Просмотр сцены изменит вид только у Мастера. Активация сделает её активной для игрового стола.</p>`,
+    choices: [
+      { id: "view", label: "Просто перейти к сцене" },
+      { id: "activate", label: "Активировать сцену", cssClass: "jml-primary" }
+    ]
+  });
+  if (!choice) return;
+
   try {
-    await scene.activate();
-    console.log("Journal Track Links | Scene activated:", scene.name);
+    if (choice === "activate") await scene.activate();
+    else if (typeof scene.view === "function") await scene.view();
+    else {
+      ui.notifications.error("В этой версии Foundry переход к сцене без активации недоступен.");
+      return;
+    }
+    console.log(`Journal Media Links | Scene ${choice}:`, scene.name);
   } catch (error) {
-    console.error("Journal Track Links | Ошибка активации сцены:", error);
-    ui.notifications.error("Не удалось активировать сцену.");
+    console.error("Journal Media Links | Ошибка перехода к сцене:", error);
+    ui.notifications.error(choice === "activate" ? "Не удалось активировать сцену." : "Не удалось перейти к сцене.");
   }
 }
 
@@ -48,7 +108,7 @@ function handleImagesLink(link) {
     }
     showImagesForEveryone(paths);
   } catch (error) {
-    console.error("Journal Track Links | Ошибка показа изображений:", error);
+    console.error("Journal Media Links | Ошибка показа изображений:", error);
     ui.notifications.error("Не удалось показать изображения.");
   }
 }

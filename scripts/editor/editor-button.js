@@ -13,7 +13,7 @@ export function registerEditorButton() {
     menus.push(...root.querySelectorAll("prose-mirror .editor-menu"));
 
     for (const menu of new Set(menus)) {
-      if (menu.querySelector(".jtl-create-link")) continue;
+      if (menu.querySelector(".jml-create-link")) continue;
       const linkButton = menu.querySelector('button[data-action="link"]');
       if (!linkButton) continue;
 
@@ -21,9 +21,9 @@ export function registerEditorButton() {
       item.className = "text";
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "jtl-create-link";
-      button.title = "Инструменты модуля";
-      button.setAttribute("aria-label", "Инструменты модуля");
+      button.className = "jml-create-link";
+      button.title = "Journal Media Links — создать ссылку";
+      button.setAttribute("aria-label", "Journal Media Links — создать ссылку");
       button.textContent = "ϟ";
       Object.assign(button.style, { fontSize: "18px", fontWeight: "bold", lineHeight: "1" });
       button.addEventListener("click", () => openLinkDialog(button.closest("prose-mirror")));

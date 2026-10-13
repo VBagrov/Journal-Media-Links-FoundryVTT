@@ -6,13 +6,13 @@ export function registerTextEnrichers() {
       pattern: /@PlayTrack\[([^\]]+)\](?:\{([^}]+)\})?/g,
       className: "journal-track-link",
       dataAttribute: "trackUuid",
-      fallback: "▶ Включить музыку"
+      fallback: "Включить музыку"
     },
     {
       pattern: /@ActivateScene\[([^\]]+)\](?:\{([^}]+)\})?/g,
       className: "journal-scene-link",
       dataAttribute: "sceneUuid",
-      fallback: "Открыть сцену"
+      fallback: "Перейти к сцене"
     },
     {
       pattern: /@ShowImages\[([^\]]+)\](?:\{([^}]+)\})?/g,

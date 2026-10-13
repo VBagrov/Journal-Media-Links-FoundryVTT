@@ -8,11 +8,24 @@ export function showImageOverlay(paths) {
   closeImageOverlay();
   if (!Array.isArray(paths) || paths.length === 0) return;
 
+  const singleImage = paths.length === 1;
+  const columns = singleImage ? 1 : Math.min(4, Math.ceil(Math.sqrt(paths.length * 1.35)));
+  const rows = Math.ceil(paths.length / columns);
+  // A single image is a presentation, not a thumbnail: give it a large viewport.
+  // Multi-image displays retain the compact adaptive grid sizing.
+  const initialWidth = singleImage
+    ? Math.min(window.innerWidth * 0.9, Math.max(320, window.innerWidth * 0.62))
+    : Math.min(window.innerWidth * 0.92, Math.max(300, columns * 250 + 24));
+  const initialHeight = singleImage
+    ? Math.min(window.innerHeight * 0.88, Math.max(240, window.innerHeight * 0.78))
+    : Math.min(window.innerHeight * 0.9, Math.max(220, rows * 180 + 54));
   const overlay = document.createElement("div");
   overlay.id = IMAGE_OVERLAY_ID;
   Object.assign(overlay.style, {
-    position: "fixed", left: "10%", top: "10%", width: "80vw", height: "75vh",
-    minWidth: "280px", minHeight: "220px", maxWidth: "98vw", maxHeight: "95vh",
+    position: "fixed", left: `${Math.max(4, (window.innerWidth - initialWidth) / 2)}px`,
+    top: `${Math.max(4, (window.innerHeight - initialHeight) / 2)}px`,
+    width: `${initialWidth}px`, height: `${initialHeight}px`,
+    minWidth: "280px", minHeight: "180px", maxWidth: "98vw", maxHeight: "95vh",
     zIndex: "100000", display: "flex", flexDirection: "column", background: "#171717",
     color: "#fff", border: "1px solid #777", borderRadius: "8px", boxShadow: "0 8px 32px #000a",
     overflow: "hidden", resize: "both", boxSizing: "border-box"
@@ -59,9 +72,9 @@ export function showImageOverlay(paths) {
   const grid = document.createElement("div");
   Object.assign(grid.style, {
     flex: "1 1 auto", minWidth: "0", minHeight: "0", padding: "10px", display: "grid",
-    gridTemplateColumns: paths.length === 1 ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
-    gridTemplateRows: paths.length <= 2 ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(0, 1fr))",
-    gap: "10px", overflow: "auto", boxSizing: "border-box"
+    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+    gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+    gap: "10px", overflow: "hidden", boxSizing: "border-box"
   });
 
   for (const path of paths) {
@@ -81,7 +94,7 @@ export function showImageOverlay(paths) {
     });
     image.addEventListener("error", () => {
       image.alt = "Не удалось загрузить изображение";
-      console.error("Journal Track Links | Ошибка изображения:", path);
+      console.error("Journal Media Links | Ошибка изображения:", path);
     });
     cell.appendChild(image);
     grid.appendChild(cell);
@@ -131,7 +144,7 @@ export function registerImageSocketHandlers() {
 
     if (data.action === "show" && Array.isArray(data.paths) && data.paths.length > 0) {
       showImageOverlay(data.paths);
-      console.log("Journal Track Links | Получена команда показа изображений");
+      console.log("Journal Media Links | Получена команда показа изображений");
     } else if (data.action === "close") {
       closeImageOverlay();
     }

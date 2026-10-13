@@ -8,7 +8,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Journal Track Links | Ready");
+  console.log("Journal Media Links | Ready");
   registerImageSocketHandlers();
   registerLinkClickHandler();
   registerEditorButton();
