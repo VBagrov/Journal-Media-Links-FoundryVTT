@@ -2,7 +2,7 @@
   "id": "journal-media-links",
   "title": "Journal Media Links",
   "description": "Clickable journal actions for scene navigation, music playback, and shared image display.",
-  "version": "1.1.1",
+  "version": "1.0.3",
   "compatibility": {
     "minimum": "13",
     "verified": "14"
