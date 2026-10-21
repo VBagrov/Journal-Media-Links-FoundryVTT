@@ -125,10 +125,10 @@ export function registerLinkClickHandler() {
 
     event.preventDefault();
     event.stopPropagation();
-    if (!game.user.isGM) {
-      ui.notifications.warn("Это действие доступно только Мастеру.");
-      return;
-    }
+    if (!game.user.isGM && !imagesLink) {
+    ui.notifications.warn("Это действие доступно только Мастеру.");
+    return;
+  }
 
     if (trackLink) await handleTrackLink(trackLink);
     else if (sceneLink) await handleSceneLink(sceneLink);
