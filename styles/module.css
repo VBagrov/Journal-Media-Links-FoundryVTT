@@ -33,6 +33,61 @@ a.journal-images-link:hover {
 .jml-choice-dialog p { margin: .35rem 0 .7rem; overflow-wrap: anywhere; }
 .jml-choice-dialog .notes { opacity: .8; font-size: .9em; }
 .jml-image-select { display: block; width: 100%; min-width: 0; min-height: 7rem; max-height: 30vh; }
+.jml-scene-picker {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-height: 30vh;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-light-primary, #888);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-text-dark-primary, #242424) 6%, transparent);
+}
+.jml-scene-empty { margin: .4rem .45rem; }
+.jml-scene-folder {
+  padding: .3rem .45rem .12rem calc(.45rem + var(--jml-depth, 0) * 1.1rem);
+  font-weight: 700;
+  opacity: .85;
+}
+.jml-scene-option {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: .22rem .45rem .22rem calc(.45rem + var(--jml-depth, 0) * 1.1rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.jml-scene-option:hover {
+  background: color-mix(in srgb, var(--color-border-highlight, #b99a5c) 18%, transparent);
+}
+.jml-scene-option.selected {
+  background: color-mix(in srgb, var(--color-border-highlight, #b99a5c) 32%, transparent);
+  font-weight: 600;
+}
+.jml-scene-option img,
+.jml-scene-thumb {
+  width: 64px;
+  height: 40px;
+  flex: 0 0 auto;
+  background: #171717;
+  border: 1px solid var(--color-border-light-primary, #888);
+  border-radius: 3px;
+}
+.jml-scene-option img { object-fit: cover; }
+.jml-scene-thumb-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.jml-scene-thumb-empty::before { content: "▣"; opacity: .4; }
+.jml-scene-name { min-width: 0; overflow-wrap: anywhere; }
 .jml-create-link { font-weight: 800 !important; }
 .jml-primary { font-weight: 700; }
 .window-app:has(.jml-choice-dialog) .window-content,
@@ -40,6 +95,7 @@ a.journal-images-link:hover {
 @media (max-width: 520px) {
   a.journal-track-link, a.journal-scene-link, a.journal-images-link { white-space: normal; }
   .jml-image-select { max-height: 22vh; }
+  .jml-scene-picker { max-height: 22vh; }
 }
 
 .window-app:has(.jml-choice-dialog) .dialog-buttons { display: flex; flex-wrap: wrap; gap: .35rem; }

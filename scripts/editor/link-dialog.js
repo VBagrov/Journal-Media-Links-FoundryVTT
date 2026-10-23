@@ -1,8 +1,58 @@
 import { DEFAULT_LABELS, IMAGE_EXTENSIONS, LINK_TYPES, getImageFolder } from "../constants.js";
 import { escapeHtml } from "../utils/html.js";
 
+function compareBySortMode(mode) {
+  return (a, b) => {
+    if (mode === "m") return (a.sort - b.sort) || a.name.localeCompare(b.name);
+    return a.name.localeCompare(b.name);
+  };
+}
+
+function buildSceneTreeItems() {
+  const items = [];
+  const nodes = new Map(game.folders
+    .filter(folder => folder.type === "Scene")
+    .map(folder => [folder.id, { folder, childFolders: [], scenes: [] }]));
+  const root = { childFolders: [], scenes: [] };
+
+  for (const node of nodes.values()) {
+    const parent = node.folder.parentFolder;
+    const parentNode = parent ? nodes.get(parent.id) : null;
+    (parentNode ? parentNode.childFolders : root.childFolders).push(node);
+  }
+  for (const scene of game.scenes.contents) {
+    const node = scene.folder ? nodes.get(scene.folder.id) : null;
+    (node ? node.scenes : root.scenes).push(scene);
+  }
+
+  const walk = (node, depth, mode) => {
+    const byMode = compareBySortMode(mode);
+    node.childFolders.sort((a, b) => byMode(a.folder, b.folder));
+    node.scenes.sort(byMode);
+    for (const child of node.childFolders) {
+      items.push({ kind: "folder", folder: child.folder, depth });
+      walk(child, depth + 1, child.folder.sorting);
+    }
+    for (const scene of node.scenes) items.push({ kind: "scene", scene, depth });
+  };
+  walk(root, 0, "a");
+  return items;
+}
+
+function renderScenePickerItems(items) {
+  if (!items.length) return '<p class="notes jml-scene-empty">В мире нет ни одной сцены.</p>';
+  return items.map(item => {
+    if (item.kind === "folder") {
+      return `<div class="jml-scene-folder" style="--jml-depth:${item.depth}">${escapeHtml(item.folder.name)}</div>`;
+    }
+    const thumb = item.scene.thumb
+      ? `<img src="${escapeHtml(item.scene.thumb)}" alt="" loading="lazy">`
+      : '<span class="jml-scene-thumb jml-scene-thumb-empty" aria-hidden="true"></span>';
+    return `<button type="button" class="jml-scene-option" role="option" aria-selected="false" style="--jml-depth:${item.depth}" data-scene-id="${escapeHtml(item.scene.id)}">${thumb}<span class="jml-scene-name">${escapeHtml(item.scene.name)}</span></button>`;
+  }).join("");
+}
+
 export function openLinkDialog(editor) {
-  const scenes = game.scenes.contents;
   const playlists = game.playlists.contents;
   const imageFolder = getImageFolder();
 
@@ -15,9 +65,12 @@ export function openLinkDialog(editor) {
           <option value="images">Показ изображений игрокам</option>
         </select>
       </div>
-      <div class="form-group scene-field"><label>Сцена</label><select name="scene">
-        ${scenes.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join("")}
-      </select></div>
+      <div class="form-group scene-field"><label>Сцена</label>
+        <div class="jml-scene-picker" role="listbox" aria-label="Сцена">
+          ${renderScenePickerItems(buildSceneTreeItems())}
+        </div>
+        <input type="hidden" name="scene" value="" />
+      </div>
       <div class="form-group track-field" style="display:none"><label>Плейлист</label><select name="playlist">
         ${playlists.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join("")}
       </select></div>
@@ -84,6 +137,25 @@ export function openLinkDialog(editor) {
       const uploadButton = form.elements.uploadButton;
       const imagePreview = form.querySelector(".jml-image-preview");
       const uploadPreview = form.querySelector(".jml-upload-preview");
+      const sceneInput = form.elements.scene;
+      const scenePicker = form.querySelector(".jml-scene-picker");
+
+      const selectSceneOption = (option) => {
+        scenePicker.querySelectorAll(".jml-scene-option.selected").forEach(el => {
+          el.classList.remove("selected");
+          el.setAttribute("aria-selected", "false");
+        });
+        option.classList.add("selected");
+        option.setAttribute("aria-selected", "true");
+        sceneInput.value = option.dataset.sceneId;
+      };
+
+      scenePicker.addEventListener("click", (event) => {
+        const option = event.target.closest(".jml-scene-option");
+        if (option) selectSceneOption(option);
+      });
+      const firstSceneOption = scenePicker.querySelector(".jml-scene-option");
+      if (firstSceneOption) selectSceneOption(firstSceneOption);
 
       const resizeDialog = () => {
         requestAnimationFrame(() => {
