@@ -33,11 +33,18 @@ a.journal-images-link:hover {
 .jml-choice-dialog p { margin: .35rem 0 .7rem; overflow-wrap: anywhere; }
 .jml-choice-dialog .notes { opacity: .8; font-size: .9em; }
 .jml-image-select { display: block; width: 100%; min-width: 0; min-height: 7rem; max-height: 30vh; }
-.jml-scene-picker {
-  display: block;
+.jml-scene-layout {
+  display: flex;
+  align-items: stretch;
+  gap: .6rem;
   width: 100%;
+}
+.jml-scene-picker {
+  order: 2;
+  flex: 0 0 240px;
+  width: 240px;
   min-width: 0;
-  max-height: 30vh;
+  max-height: 45vh;
   overflow-y: auto;
   border: 1px solid var(--color-border-light-primary, #888);
   border-radius: 4px;
@@ -45,10 +52,28 @@ a.journal-images-link:hover {
 }
 .jml-scene-empty { margin: .4rem .45rem; }
 .jml-scene-folder {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: .3rem .45rem .12rem calc(.45rem + var(--jml-depth, 0) * 1.1rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
   font-weight: 700;
-  opacity: .85;
+  text-align: left;
+  cursor: pointer;
 }
+.jml-scene-folder:hover {
+  background: color-mix(in srgb, var(--color-border-highlight, #b99a5c) 14%, transparent);
+}
+.jml-folder-toggle { width: 1em; flex: 0 0 auto; }
+.jml-folder-toggle::before { content: "▾"; }
+.jml-scene-folder.collapsed .jml-folder-toggle::before { content: "▸"; }
+.jml-scene-picker .hidden { display: none; }
 .jml-scene-option {
   display: flex;
   align-items: center;
@@ -56,7 +81,7 @@ a.journal-images-link:hover {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: .22rem .45rem .22rem calc(.45rem + var(--jml-depth, 0) * 1.1rem);
+  padding: .22rem .45rem .22rem calc(.9rem + var(--jml-depth, 0) * 1.1rem);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -71,22 +96,35 @@ a.journal-images-link:hover {
   background: color-mix(in srgb, var(--color-border-highlight, #b99a5c) 32%, transparent);
   font-weight: 600;
 }
-.jml-scene-option img,
-.jml-scene-thumb {
-  width: 64px;
-  height: 40px;
-  flex: 0 0 auto;
-  background: #171717;
-  border: 1px solid var(--color-border-light-primary, #888);
-  border-radius: 3px;
-}
-.jml-scene-option img { object-fit: cover; }
-.jml-scene-thumb-empty {
-  display: inline-flex;
+.jml-scene-preview {
+  order: 1;
+  flex: 1 1 480px;
+  min-width: 240px;
+  max-height: 70vh;
+  aspect-ratio: 16 / 10;
+  display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
 }
-.jml-scene-thumb-empty::before { content: "▣"; opacity: .4; }
+.jml-scene-preview .jml-preview-item {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.jml-scene-preview .jml-preview-item img {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  background: #171717;
+  border: 1px solid var(--color-border-light-primary, #888);
+  border-radius: 4px;
+}
+.jml-scene-preview .jml-preview-item figcaption { flex: 0 0 auto; padding-top: .2rem; }
+.jml-scene-preview .notes { margin: .3rem 0; }
 .jml-scene-name { min-width: 0; overflow-wrap: anywhere; }
 .jml-create-link { font-weight: 800 !important; }
 .jml-primary { font-weight: 700; }
@@ -95,7 +133,9 @@ a.journal-images-link:hover {
 @media (max-width: 520px) {
   a.journal-track-link, a.journal-scene-link, a.journal-images-link { white-space: normal; }
   .jml-image-select { max-height: 22vh; }
-  .jml-scene-picker { max-height: 22vh; }
+  .jml-scene-layout { flex-direction: column; }
+  .jml-scene-picker { flex: 0 0 auto; width: 100%; max-height: 30vh; }
+  .jml-scene-preview { flex: 0 0 auto; min-width: 0; max-height: none; }
 }
 
 .window-app:has(.jml-choice-dialog) .dialog-buttons { display: flex; flex-wrap: wrap; gap: .35rem; }
@@ -115,8 +155,18 @@ a.journal-images-link:hover {
   flex-wrap: wrap;
   gap: .5rem;
   margin-top: .45rem;
-  max-height: 28vh;
-  overflow: auto;
+}
+.jml-image-preview .jml-preview-item {
+  flex: 1 1 220px;
+  min-width: 160px;
+  width: auto;
+  margin: 0;
+}
+.jml-image-preview .jml-preview-item img {
+  width: 100%;
+  height: auto;
+  max-height: 40vh;
+  object-fit: contain;
 }
 .jml-preview-item {
   width: min(140px, 30%);

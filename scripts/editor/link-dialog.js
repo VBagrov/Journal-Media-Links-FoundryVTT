@@ -25,31 +25,34 @@ function buildSceneTreeItems() {
     (node ? node.scenes : root.scenes).push(scene);
   }
 
-  const walk = (node, depth, mode) => {
+  const walk = (node, depth, mode, ancestors) => {
     const byMode = compareBySortMode(mode);
     node.childFolders.sort((a, b) => byMode(a.folder, b.folder));
     node.scenes.sort(byMode);
     for (const child of node.childFolders) {
-      items.push({ kind: "folder", folder: child.folder, depth });
-      walk(child, depth + 1, child.folder.sorting);
+      items.push({ kind: "folder", folder: child.folder, depth, ancestors });
+      walk(child, depth + 1, child.folder.sorting, [...ancestors, child.folder.id]);
     }
-    for (const scene of node.scenes) items.push({ kind: "scene", scene, depth });
+    for (const scene of node.scenes) items.push({ kind: "scene", scene, depth, ancestors });
   };
-  walk(root, 0, "a");
+  walk(root, 0, "a", []);
   return items;
 }
 
 function renderScenePickerItems(items) {
   if (!items.length) return '<p class="notes jml-scene-empty">В мире нет ни одной сцены.</p>';
   return items.map(item => {
+    const ancestors = (item.ancestors ?? []).map(id => escapeHtml(id)).join(",");
     if (item.kind === "folder") {
-      return `<div class="jml-scene-folder" style="--jml-depth:${item.depth}">${escapeHtml(item.folder.name)}</div>`;
+      return `<button type="button" class="jml-scene-folder" style="--jml-depth:${item.depth}" data-folder-id="${escapeHtml(item.folder.id)}" data-ancestors="${ancestors}" aria-expanded="true"><span class="jml-folder-toggle" aria-hidden="true"></span>${escapeHtml(item.folder.name)}</button>`;
     }
-    const thumb = item.scene.thumb
-      ? `<img src="${escapeHtml(item.scene.thumb)}" alt="" loading="lazy">`
-      : '<span class="jml-scene-thumb jml-scene-thumb-empty" aria-hidden="true"></span>';
-    return `<button type="button" class="jml-scene-option" role="option" aria-selected="false" style="--jml-depth:${item.depth}" data-scene-id="${escapeHtml(item.scene.id)}">${thumb}<span class="jml-scene-name">${escapeHtml(item.scene.name)}</span></button>`;
+    return `<button type="button" class="jml-scene-option" role="option" aria-selected="false" style="--jml-depth:${item.depth}" data-scene-id="${escapeHtml(item.scene.id)}" data-ancestors="${ancestors}"><span class="jml-scene-name">${escapeHtml(item.scene.name)}</span></button>`;
   }).join("");
+}
+
+function decodeFileName(path) {
+  const raw = String(path).split("/").pop();
+  try { return decodeURIComponent(raw); } catch { return raw; }
 }
 
 export function openLinkDialog(editor) {
@@ -65,9 +68,12 @@ export function openLinkDialog(editor) {
           <option value="images">Показ изображений игрокам</option>
         </select>
       </div>
-      <div class="form-group scene-field"><label>Сцена</label>
-        <div class="jml-scene-picker" role="listbox" aria-label="Сцена">
-          ${renderScenePickerItems(buildSceneTreeItems())}
+      <div class="form-group scene-field">
+        <div class="jml-scene-layout">
+          <div class="jml-scene-picker" role="listbox" aria-label="Сцена">
+            ${renderScenePickerItems(buildSceneTreeItems())}
+          </div>
+          <div class="jml-scene-preview" aria-live="polite"></div>
         </div>
         <input type="hidden" name="scene" value="" />
       </div>
@@ -139,6 +145,27 @@ export function openLinkDialog(editor) {
       const uploadPreview = form.querySelector(".jml-upload-preview");
       const sceneInput = form.elements.scene;
       const scenePicker = form.querySelector(".jml-scene-picker");
+      const scenePreview = form.querySelector(".jml-scene-preview");
+      const collapsedFolders = new Set();
+
+      const updateSceneVisibility = () => {
+        scenePicker.querySelectorAll("[data-ancestors]").forEach(el => {
+          const ancestors = el.dataset.ancestors.split(",").filter(Boolean);
+          el.classList.toggle("hidden", ancestors.some(id => collapsedFolders.has(id)));
+        });
+      };
+
+      const updateScenePreview = () => {
+        const scene = game.scenes.get(sceneInput.value);
+        if (!scene) {
+          scenePreview.innerHTML = '<p class="notes">Выбери сцену, чтобы увидеть превью.</p>';
+        } else if (scene.thumb) {
+          scenePreview.innerHTML = `<figure class="jml-preview-item"><img src="${escapeHtml(scene.thumb)}" alt="${escapeHtml(scene.name)}"><figcaption>${escapeHtml(scene.name)}</figcaption></figure>`;
+        } else {
+          scenePreview.innerHTML = `<p class="notes">У сцены «${escapeHtml(scene.name)}» нет превью.</p>`;
+        }
+        resizeDialog();
+      };
 
       const selectSceneOption = (option) => {
         scenePicker.querySelectorAll(".jml-scene-option.selected").forEach(el => {
@@ -148,14 +175,24 @@ export function openLinkDialog(editor) {
         option.classList.add("selected");
         option.setAttribute("aria-selected", "true");
         sceneInput.value = option.dataset.sceneId;
+        updateScenePreview();
       };
 
       scenePicker.addEventListener("click", (event) => {
+        const folderToggle = event.target.closest(".jml-scene-folder");
+        if (folderToggle) {
+          const folderId = folderToggle.dataset.folderId;
+          if (collapsedFolders.has(folderId)) collapsedFolders.delete(folderId);
+          else collapsedFolders.add(folderId);
+          folderToggle.classList.toggle("collapsed", collapsedFolders.has(folderId));
+          folderToggle.setAttribute("aria-expanded", String(!collapsedFolders.has(folderId)));
+          updateSceneVisibility();
+          resizeDialog();
+          return;
+        }
         const option = event.target.closest(".jml-scene-option");
         if (option) selectSceneOption(option);
       });
-      const firstSceneOption = scenePicker.querySelector(".jml-scene-option");
-      if (firstSceneOption) selectSceneOption(firstSceneOption);
 
       const resizeDialog = () => {
         requestAnimationFrame(() => {
@@ -165,7 +202,7 @@ export function openLinkDialog(editor) {
             app.style.maxHeight = `${Math.max(240, window.innerHeight - 32)}px`;
           }
           dialog?.setPosition?.({
-            width: Math.min(680, Math.max(320, window.innerWidth - 32)),
+            width: Math.min(800, Math.max(320, window.innerWidth - 32)),
             height: "auto"
           });
         });
@@ -178,8 +215,7 @@ export function openLinkDialog(editor) {
         } else {
           imagePreview.innerHTML = selected.map(path => `
             <figure class="jml-preview-item">
-              <img src="${escapeHtml(path)}" alt="${escapeHtml(path.split("/").pop())}">
-              <figcaption>${escapeHtml(path.split("/").pop())}</figcaption>
+              <img src="${escapeHtml(path)}" alt="${escapeHtml(decodeFileName(path))}">
             </figure>`).join("");
         }
         resizeDialog();
@@ -245,8 +281,8 @@ export function openLinkDialog(editor) {
         try {
           const result = await FilePicker.browse("data", imageFolder);
           const files = (result.files ?? []).filter(path => IMAGE_EXTENSIONS.test(path));
-          images.innerHTML = files.sort((a, b) => a.localeCompare(b)).map(path =>
-            `<option value="${escapeHtml(path)}">${escapeHtml(path.split("/").pop())}</option>`
+          images.innerHTML = files.sort((a, b) => decodeFileName(a).localeCompare(decodeFileName(b))).map(path =>
+            `<option value="${escapeHtml(path)}">${escapeHtml(decodeFileName(path))}</option>`
           ).join("");
           for (const option of images.options) option.selected = previous.has(option.value);
           updateImagePreview();
@@ -295,12 +331,21 @@ export function openLinkDialog(editor) {
       images.addEventListener("change", updateImagePreview);
       uploadFiles.addEventListener("change", renderUploadPreview);
       window.addEventListener("resize", resizeDialog);
+      scenePicker.querySelectorAll(".jml-scene-folder").forEach(el => {
+        collapsedFolders.add(el.dataset.folderId);
+        el.classList.add("collapsed");
+        el.setAttribute("aria-expanded", "false");
+      });
+      updateSceneVisibility();
+      const firstSceneOption = scenePicker.querySelector(".jml-scene-option:not(.hidden)");
+      if (firstSceneOption) selectSceneOption(firstSceneOption);
+      else updateScenePreview();
       updateSounds();
       updateType();
       refreshImages();
       renderUploadPreview();
       resizeDialog();
     }
-  }, { width: Math.min(680, Math.max(320, window.innerWidth - 32)), height: "auto" });
+  }, { width: Math.min(800, Math.max(320, window.innerWidth - 32)), height: "auto", resizable: true });
   dialog.render(true);
 }

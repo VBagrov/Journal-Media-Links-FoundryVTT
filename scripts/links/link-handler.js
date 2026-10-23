@@ -17,7 +17,7 @@ function askChoice({ title, content, choices, width = 420 }) {
       buttons,
       default: choices[0]?.id,
       close: () => resolve(null)
-    }, { width: Math.min(width, Math.max(300, window.innerWidth - 24)), height: "auto" }).render(true);
+    }, { width: Math.min(width, Math.max(300, window.innerWidth - 24)), height: "auto", resizable: true }).render(true);
   });
 }
 
